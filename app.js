@@ -8,6 +8,7 @@ const DEFAULT_VIDEO_URL = "https://www.youtube.com/watch?v=_Ngk-DCHfD0";
 const DEFAULT_VIDEO_ID = "_Ngk-DCHfD0";
 const DEFAULT_TRACK_NAME = "기본 트랙";
 const VOLUME_CURVE_EXPONENT = 2;
+const PAD_BOOST_MULTIPLIER = 1.75;
 const PAD_COLORS = [
   { glow: "rgba(0, 255, 255, 0.34)", border: "rgba(110, 255, 255, 0.72)", inner: "rgba(180, 255, 255, 0.18)" },
   { glow: "rgba(255, 0, 255, 0.34)", border: "rgba(255, 120, 255, 0.72)", inner: "rgba(255, 190, 255, 0.18)" },
@@ -45,8 +46,8 @@ let youtubeVolumePercent = Number(localStorage.getItem(STORAGE_KEYS.youtubeVolum
 let pendingVideo = null;
 let audioContext = null;
 let padGainNode = null;
+let padCompressorNode = null;
 let padBuffers = new Map();
-let lastTouchEndAt = 0;
 
 const isMobileDevice =
   /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
@@ -81,7 +82,7 @@ function applyVolumeCurve(percent) {
 }
 
 function getPadGain() {
-  return applyVolumeCurve(padVolumePercent);
+  return applyVolumeCurve(padVolumePercent) * PAD_BOOST_MULTIPLIER;
 }
 
 function getYouTubeVolume() {
@@ -97,8 +98,15 @@ function ensureAudioContext() {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     audioContext = new AudioContextClass();
     padGainNode = audioContext.createGain();
+    padCompressorNode = audioContext.createDynamicsCompressor();
+    padCompressorNode.threshold.value = -18;
+    padCompressorNode.knee.value = 12;
+    padCompressorNode.ratio.value = 8;
+    padCompressorNode.attack.value = 0.002;
+    padCompressorNode.release.value = 0.16;
     padGainNode.gain.value = getPadGain();
-    padGainNode.connect(audioContext.destination);
+    padGainNode.connect(padCompressorNode);
+    padCompressorNode.connect(audioContext.destination);
   }
 
   if (audioContext.state === "suspended") {
@@ -311,13 +319,9 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener(
-  "touchend",
+  "dblclick",
   (event) => {
-    const now = Date.now();
-    if (now - lastTouchEndAt < 300) {
-      event.preventDefault();
-    }
-    lastTouchEndAt = now;
+    event.preventDefault();
   },
   { passive: false }
 );

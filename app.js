@@ -321,6 +321,7 @@ function createPadButton(sound, index) {
   button.className = "pad-button";
   button.type = "button";
   button.dataset.sound = sound.src;
+  let lastTriggerAt = 0;
 
   const assignedKey = PAD_KEYS[index] ?? String(index + 1);
   button.innerHTML = `
@@ -329,6 +330,12 @@ function createPadButton(sound, index) {
   `;
 
   const trigger = () => {
+    const now = Date.now();
+    if (now - lastTriggerAt < 120) {
+      return;
+    }
+    lastTriggerAt = now;
+
     const glowColor = PAD_COLORS[Math.floor(Math.random() * PAD_COLORS.length)];
     playPadSound(sound.src);
     button.style.setProperty("--pad-glow", glowColor.glow);
@@ -338,6 +345,8 @@ function createPadButton(sound, index) {
     window.setTimeout(() => button.classList.remove("active"), 160);
   };
 
+  button.addEventListener("pointerdown", trigger);
+  button.addEventListener("touchstart", trigger, { passive: true });
   button.addEventListener("click", trigger);
   return { button, assignedKey, trigger };
 }

@@ -9,6 +9,7 @@ const DEFAULT_VIDEO_ID = "_Ngk-DCHfD0";
 const DEFAULT_TRACK_NAME = "기본 트랙";
 const VOLUME_CURVE_EXPONENT = 2;
 const PAD_BOOST_MULTIPLIER = 1.75;
+const PAD_FALLBACK_POOL_SIZE = 2;
 const PAD_COLORS = [
   { glow: "rgba(0, 255, 255, 0.34)", border: "rgba(110, 255, 255, 0.72)", inner: "rgba(180, 255, 255, 0.18)" },
   { glow: "rgba(255, 0, 255, 0.34)", border: "rgba(255, 120, 255, 0.72)", inner: "rgba(255, 190, 255, 0.18)" },
@@ -48,10 +49,12 @@ let audioContext = null;
 let padGainNode = null;
 let padCompressorNode = null;
 let padBuffers = new Map();
+let padAudioPools = new Map();
 
 const isMobileDevice =
   /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
   window.matchMedia("(pointer: coarse)").matches;
+const prefersHtmlAudioPads = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 dom.urlInput.value = localStorage.getItem(STORAGE_KEYS.lastUrl) ?? DEFAULT_VIDEO_URL;
 dom.youtubeVolume.value = String(youtubeVolumePercent);
@@ -89,7 +92,53 @@ function getYouTubeVolume() {
   return Math.round(applyVolumeCurve(youtubeVolumePercent) * 100);
 }
 
+function getFallbackVolume() {
+  return Math.min(1, getPadGain());
+}
+
+function createPadAudioInstance(soundSrc) {
+  const audio = new Audio(soundSrc);
+  audio.preload = "metadata";
+  audio.playsInline = true;
+  audio.volume = getFallbackVolume();
+  return audio;
+}
+
+function ensurePadAudioPool(soundSrc, initialSize = 1) {
+  const existingPool = padAudioPools.get(soundSrc);
+  if (existingPool) {
+    return existingPool;
+  }
+
+  const pool = Array.from({ length: initialSize }, () => createPadAudioInstance(soundSrc));
+  padAudioPools.set(soundSrc, pool);
+  return pool;
+}
+
+function playPadFallback(soundSrc) {
+  const pool = ensurePadAudioPool(soundSrc, 1);
+  const reusableAudio =
+    pool.find((audio) => audio.paused || audio.ended) ??
+    (() => {
+      const audio = createPadAudioInstance(soundSrc);
+      if (pool.length < PAD_FALLBACK_POOL_SIZE) {
+        pool.push(audio);
+      }
+      return audio;
+    })();
+
+  reusableAudio.volume = getFallbackVolume();
+  reusableAudio.currentTime = 0;
+  reusableAudio.play().catch(() => {
+    setStatus("브라우저가 오디오 재생을 막았어요. 한 번 클릭 후 다시 시도해보세요.");
+  });
+}
+
 function ensureAudioContext() {
+  if (prefersHtmlAudioPads) {
+    return null;
+  }
+
   if (!window.AudioContext && !window.webkitAudioContext) {
     return null;
   }
@@ -141,6 +190,11 @@ async function preloadPadSounds() {
 }
 
 function playPadSound(soundSrc) {
+  if (prefersHtmlAudioPads) {
+    playPadFallback(soundSrc);
+    return;
+  }
+
   const context = ensureAudioContext();
   const buffer = padBuffers.get(soundSrc);
 
@@ -311,8 +365,10 @@ document.addEventListener("keydown", (event) => {
   document.addEventListener(
     eventName,
     () => {
-      ensureAudioContext();
-      preloadPadSounds();
+      if (!prefersHtmlAudioPads) {
+        ensureAudioContext();
+        preloadPadSounds();
+      }
     },
     { once: true }
   );
@@ -364,6 +420,11 @@ dom.padVolume.addEventListener("input", (event) => {
   if (padGainNode) {
     padGainNode.gain.value = getPadGain();
   }
+  padAudioPools.forEach((pool) => {
+    pool.forEach((audio) => {
+      audio.volume = getFallbackVolume();
+    });
+  });
 });
 
 dom.playButton.addEventListener("click", () => player?.playVideo());

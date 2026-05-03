@@ -30,6 +30,7 @@ const dom = {
   playButton: document.querySelector("#play-button"),
   pauseButton: document.querySelector("#pause-button"),
   stopButton: document.querySelector("#stop-button"),
+  youtubeVolumeLabel: document.querySelector("#youtube-volume-label"),
   youtubeVolume: document.querySelector("#youtube-volume"),
   padVolume: document.querySelector("#pad-volume"),
   padGrid: document.querySelector("#pad-grid"),
@@ -41,10 +42,20 @@ let activeTrackTitle = "";
 let padVolume = Number(localStorage.getItem(STORAGE_KEYS.padVolume) ?? 1);
 let youtubeVolume = Number(localStorage.getItem(STORAGE_KEYS.youtubeVolume) ?? 70);
 let pendingVideo = null;
+let audioContext = null;
+let padGainNode = null;
+let padBuffers = new Map();
+
+const isMobileDevice =
+  /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+  window.matchMedia("(pointer: coarse)").matches;
 
 dom.urlInput.value = localStorage.getItem(STORAGE_KEYS.lastUrl) ?? DEFAULT_VIDEO_URL;
 dom.youtubeVolume.value = String(youtubeVolume);
 dom.padVolume.value = String(Math.round(padVolume * 100));
+if (isMobileDevice) {
+  dom.youtubeVolumeLabel.textContent = "볼륨 (모바일 제한 있음)";
+}
 
 function setStatus(text) {
   dom.playerStatus.textContent = text;
@@ -56,6 +67,71 @@ function setNowPlaying(text) {
 
 function normalizePadName(label) {
   return label.replace(/[-_]/g, " ").replace(/\.[^.]+$/, "");
+}
+
+function ensureAudioContext() {
+  if (!window.AudioContext && !window.webkitAudioContext) {
+    return null;
+  }
+
+  if (!audioContext) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AudioContextClass();
+    padGainNode = audioContext.createGain();
+    padGainNode.gain.value = padVolume;
+    padGainNode.connect(audioContext.destination);
+  }
+
+  if (audioContext.state === "suspended") {
+    audioContext.resume().catch(() => {});
+  }
+
+  return audioContext;
+}
+
+async function preloadPadSounds() {
+  const context = ensureAudioContext();
+  if (!context) {
+    return;
+  }
+
+  const jobs = SOUNDS.map(async (sound) => {
+    if (padBuffers.has(sound.src)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(sound.src);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await context.decodeAudioData(arrayBuffer.slice(0));
+      padBuffers.set(sound.src, audioBuffer);
+    } catch (error) {
+      // Fallback path below will still allow playback.
+    }
+  });
+
+  await Promise.allSettled(jobs);
+}
+
+function playPadSound(soundSrc) {
+  const context = ensureAudioContext();
+  const buffer = padBuffers.get(soundSrc);
+
+  if (context && padGainNode && buffer) {
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(padGainNode);
+    source.start(0);
+    return;
+  }
+
+  const audio = new Audio(soundSrc);
+  audio.preload = "auto";
+  audio.volume = padVolume;
+  audio.currentTime = 0;
+  audio.play().catch(() => {
+    setStatus("브라우저가 오디오 재생을 막았어요. 한 번 클릭 후 다시 시도해보세요.");
+  });
 }
 
 function extractVideoId(input) {
@@ -173,13 +249,7 @@ function createPadButton(sound, index) {
 
   const trigger = () => {
     const glowColor = PAD_COLORS[Math.floor(Math.random() * PAD_COLORS.length)];
-    const audio = new Audio(sound.src);
-    audio.volume = padVolume;
-    audio.currentTime = 0;
-    audio.play().catch(() => {
-      setStatus("브라우저가 오디오 재생을 막았어요. 한 번 클릭 후 다시 시도해보세요.");
-    });
-
+    playPadSound(sound.src);
     button.style.setProperty("--pad-glow", glowColor.glow);
     button.style.setProperty("--pad-border", glowColor.border);
     button.style.setProperty("--pad-inner-glow", glowColor.inner);
@@ -210,6 +280,17 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+["pointerdown", "touchstart", "keydown"].forEach((eventName) => {
+  document.addEventListener(
+    eventName,
+    () => {
+      ensureAudioContext();
+      preloadPadSounds();
+    },
+    { once: true }
+  );
+});
+
 function loadFromUrlInput() {
   const value = dom.urlInput.value.trim();
   const videoId = extractVideoId(value);
@@ -237,11 +318,17 @@ dom.youtubeVolume.addEventListener("input", (event) => {
   if (player?.setVolume) {
     player.setVolume(youtubeVolume);
   }
+  if (player?.isMuted?.() && youtubeVolume > 0) {
+    player.unMute?.();
+  }
 });
 
 dom.padVolume.addEventListener("input", (event) => {
   padVolume = Number(event.target.value) / 100;
   localStorage.setItem(STORAGE_KEYS.padVolume, String(padVolume));
+  if (padGainNode) {
+    padGainNode.gain.value = padVolume;
+  }
 });
 
 dom.playButton.addEventListener("click", () => player?.playVideo());

@@ -45,6 +45,7 @@ let pendingVideo = null;
 let audioContext = null;
 let padGainNode = null;
 let padBuffers = new Map();
+let lastTouchEndAt = 0;
 
 const isMobileDevice =
   /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
@@ -290,6 +291,18 @@ document.addEventListener("keydown", (event) => {
     { once: true }
   );
 });
+
+document.addEventListener(
+  "touchend",
+  (event) => {
+    const now = Date.now();
+    if (now - lastTouchEndAt < 300) {
+      event.preventDefault();
+    }
+    lastTouchEndAt = now;
+  },
+  { passive: false }
+);
 
 function loadFromUrlInput() {
   const value = dom.urlInput.value.trim();

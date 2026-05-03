@@ -19,11 +19,17 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  touch-action: manipulation;
 }
 
 button,
 input {
   font: inherit;
+  touch-action: manipulation;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 .page-shell {

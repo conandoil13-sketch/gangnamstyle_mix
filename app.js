@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
 const DEFAULT_VIDEO_URL = "https://www.youtube.com/watch?v=_Ngk-DCHfD0";
 const DEFAULT_VIDEO_ID = "_Ngk-DCHfD0";
 const DEFAULT_TRACK_NAME = "기본 트랙";
+const VOLUME_CURVE_EXPONENT = 2;
 const PAD_COLORS = [
   { glow: "rgba(0, 255, 255, 0.34)", border: "rgba(110, 255, 255, 0.72)", inner: "rgba(180, 255, 255, 0.18)" },
   { glow: "rgba(255, 0, 255, 0.34)", border: "rgba(255, 120, 255, 0.72)", inner: "rgba(255, 190, 255, 0.18)" },
@@ -39,8 +40,8 @@ const dom = {
 let player;
 let activeVideoId = "";
 let activeTrackTitle = "";
-let padVolume = Number(localStorage.getItem(STORAGE_KEYS.padVolume) ?? 1);
-let youtubeVolume = Number(localStorage.getItem(STORAGE_KEYS.youtubeVolume) ?? 70);
+let padVolumePercent = Number(localStorage.getItem(STORAGE_KEYS.padVolume) ?? 100);
+let youtubeVolumePercent = Number(localStorage.getItem(STORAGE_KEYS.youtubeVolume) ?? 70);
 let pendingVideo = null;
 let audioContext = null;
 let padGainNode = null;
@@ -52,8 +53,8 @@ const isMobileDevice =
   window.matchMedia("(pointer: coarse)").matches;
 
 dom.urlInput.value = localStorage.getItem(STORAGE_KEYS.lastUrl) ?? DEFAULT_VIDEO_URL;
-dom.youtubeVolume.value = String(youtubeVolume);
-dom.padVolume.value = String(Math.round(padVolume * 100));
+dom.youtubeVolume.value = String(youtubeVolumePercent);
+dom.padVolume.value = String(padVolumePercent);
 if (isMobileDevice) {
   dom.youtubeVolumeLabel.textContent = "볼륨 (모바일 제한 있음)";
 }
@@ -70,6 +71,23 @@ function normalizePadName(label) {
   return label.replace(/[-_]/g, " ").replace(/\.[^.]+$/, "");
 }
 
+function clampPercent(value) {
+  return Math.max(0, Math.min(100, value));
+}
+
+function applyVolumeCurve(percent) {
+  const normalized = clampPercent(percent) / 100;
+  return Math.pow(normalized, VOLUME_CURVE_EXPONENT);
+}
+
+function getPadGain() {
+  return applyVolumeCurve(padVolumePercent);
+}
+
+function getYouTubeVolume() {
+  return Math.round(applyVolumeCurve(youtubeVolumePercent) * 100);
+}
+
 function ensureAudioContext() {
   if (!window.AudioContext && !window.webkitAudioContext) {
     return null;
@@ -79,7 +97,7 @@ function ensureAudioContext() {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     audioContext = new AudioContextClass();
     padGainNode = audioContext.createGain();
-    padGainNode.gain.value = padVolume;
+    padGainNode.gain.value = getPadGain();
     padGainNode.connect(audioContext.destination);
   }
 
@@ -128,7 +146,7 @@ function playPadSound(soundSrc) {
 
   const audio = new Audio(soundSrc);
   audio.preload = "auto";
-  audio.volume = padVolume;
+  audio.volume = getPadGain();
   audio.currentTime = 0;
   audio.play().catch(() => {
     setStatus("브라우저가 오디오 재생을 막았어요. 한 번 클릭 후 다시 시도해보세요.");
@@ -200,7 +218,7 @@ function onYouTubeIframeAPIReady() {
     events: {
       onReady: (event) => {
         setStatus("준비 완료");
-        event.target.setVolume(youtubeVolume);
+        event.target.setVolume(getYouTubeVolume());
         if (pendingVideo) {
           const { videoId, title } = pendingVideo;
           pendingVideo = null;
@@ -326,21 +344,21 @@ dom.urlInput.addEventListener("keydown", (event) => {
 });
 
 dom.youtubeVolume.addEventListener("input", (event) => {
-  youtubeVolume = Number(event.target.value);
-  localStorage.setItem(STORAGE_KEYS.youtubeVolume, String(youtubeVolume));
+  youtubeVolumePercent = Number(event.target.value);
+  localStorage.setItem(STORAGE_KEYS.youtubeVolume, String(youtubeVolumePercent));
   if (player?.setVolume) {
-    player.setVolume(youtubeVolume);
+    player.setVolume(getYouTubeVolume());
   }
-  if (player?.isMuted?.() && youtubeVolume > 0) {
+  if (player?.isMuted?.() && youtubeVolumePercent > 0) {
     player.unMute?.();
   }
 });
 
 dom.padVolume.addEventListener("input", (event) => {
-  padVolume = Number(event.target.value) / 100;
-  localStorage.setItem(STORAGE_KEYS.padVolume, String(padVolume));
+  padVolumePercent = Number(event.target.value);
+  localStorage.setItem(STORAGE_KEYS.padVolume, String(padVolumePercent));
   if (padGainNode) {
-    padGainNode.gain.value = padVolume;
+    padGainNode.gain.value = getPadGain();
   }
 });
 

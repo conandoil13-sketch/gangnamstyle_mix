@@ -96,9 +96,43 @@ html {
   margin-bottom: 16px;
 }
 
+.topbar-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .topbar h1 {
   margin: 0;
   font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.mode-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 8px;
+}
+
+.mode-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.mode-link.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: transparent;
   font-weight: 700;
 }
 
@@ -138,6 +172,10 @@ html {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 14px;
+}
+
+.panel.hidden {
+  display: none;
 }
 
 .panel-head {

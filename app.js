@@ -20,6 +20,9 @@ const dom = {
   audioStartModal: document.querySelector("#audio-start-modal"),
   audioStartMessage: document.querySelector("#audio-start-message"),
   audioStartButton: document.querySelector("#audio-start-button"),
+  padModeLink: document.querySelector("#pad-mode-link"),
+  musicModeLink: document.querySelector("#music-mode-link"),
+  playerPanel: document.querySelector("#player-panel"),
   urlInput: document.querySelector("#url-input"),
   loadUrlButton: document.querySelector("#load-url-button"),
   playerStatus: document.querySelector("#player-status"),
@@ -37,6 +40,10 @@ const isMobileDevice =
   /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
   window.matchMedia("(pointer: coarse)").matches;
 
+const params = new URLSearchParams(window.location.search);
+const currentMode = params.get("mode") === "music" ? "music" : "pad";
+const isMusicMode = currentMode === "music";
+
 const initialUrl = localStorage.getItem(STORAGE_KEYS.lastUrl) ?? DEFAULT_VIDEO_URL;
 const initialYouTubeVolume = Number(localStorage.getItem(STORAGE_KEYS.youtubeVolume) ?? 70);
 const initialPadVolume = Number(localStorage.getItem(STORAGE_KEYS.padVolume) ?? 100);
@@ -48,6 +55,13 @@ dom.padVolume.value = String(initialPadVolume);
 
 if (isMobileDevice) {
   dom.youtubeVolumeLabel.textContent = "볼륨 (모바일 제한 있음)";
+}
+
+document.body.dataset.mode = currentMode;
+dom.padModeLink?.classList.toggle("active", !isMusicMode);
+dom.musicModeLink?.classList.toggle("active", isMusicMode);
+if (!isMusicMode) {
+  dom.playerPanel?.classList.add("hidden");
 }
 
 function setStatus(text) {
@@ -63,6 +77,11 @@ function closeAudioStartModal() {
 }
 
 function setYouTubeControlsEnabled(enabled) {
+  if (!isMusicMode) {
+    youtubeUnlocked = false;
+    return;
+  }
+
   youtubeUnlocked = enabled;
   dom.urlInput.disabled = !enabled;
   dom.loadUrlButton.disabled = !enabled;
@@ -90,49 +109,51 @@ const padEngine = window.createPadEngine({
   sfxEngine,
 });
 
-const youtubeController = window.createYouTubeController({
-  playerElementId: "player",
-  initialUrl,
-  defaultVideoId: DEFAULT_VIDEO_ID,
-  defaultTrackName: DEFAULT_TRACK_NAME,
-  initialVolumePercent: initialYouTubeVolume,
-  volumeExponent: VOLUME_CURVE_EXPONENT,
-  onStatus: setStatus,
-  onNowPlaying: setNowPlaying,
-  storageKey: STORAGE_KEYS.lastUrl,
-});
+const youtubeController = isMusicMode
+  ? window.createYouTubeController({
+      playerElementId: "player",
+      initialUrl,
+      defaultVideoId: DEFAULT_VIDEO_ID,
+      defaultTrackName: DEFAULT_TRACK_NAME,
+      initialVolumePercent: initialYouTubeVolume,
+      volumeExponent: VOLUME_CURVE_EXPONENT,
+      onStatus: setStatus,
+      onNowPlaying: setNowPlaying,
+      storageKey: STORAGE_KEYS.lastUrl,
+    })
+  : null;
 
 dom.loadUrlButton.addEventListener("click", () => {
-  if (!youtubeUnlocked) return;
+  if (!youtubeUnlocked || !youtubeController) return;
   youtubeController.loadFromInput(dom.urlInput.value.trim());
 });
 
 dom.urlInput.addEventListener("keydown", (event) => {
-  if (!youtubeUnlocked) return;
+  if (!youtubeUnlocked || !youtubeController) return;
   if (event.key === "Enter") {
     youtubeController.loadFromInput(dom.urlInput.value.trim());
   }
 });
 
 dom.youtubeVolume.addEventListener("input", (event) => {
-  if (!youtubeUnlocked) return;
+  if (!youtubeUnlocked || !youtubeController) return;
   const nextValue = Number(event.target.value);
   localStorage.setItem(STORAGE_KEYS.youtubeVolume, String(nextValue));
   youtubeController.setVolumePercent(nextValue);
 });
 
 dom.playButton.addEventListener("click", () => {
-  if (!youtubeUnlocked) return;
+  if (!youtubeUnlocked || !youtubeController) return;
   youtubeController.play();
 });
 
 dom.pauseButton.addEventListener("click", () => {
-  if (!youtubeUnlocked) return;
+  if (!youtubeUnlocked || !youtubeController) return;
   youtubeController.pause();
 });
 
 dom.stopButton.addEventListener("click", () => {
-  if (!youtubeUnlocked) return;
+  if (!youtubeUnlocked || !youtubeController) return;
   youtubeController.stop();
 });
 
@@ -163,5 +184,5 @@ dom.audioStartButton?.addEventListener("click", async () => {
 });
 
 setYouTubeControlsEnabled(false);
-setStatus("패드 준비 후 유튜브 사용 가능");
-setNowPlaying("아직 없음");
+setStatus(isMusicMode ? "패드 준비 후 유튜브 사용 가능" : "패드 전용 모드");
+setNowPlaying(isMusicMode ? "아직 없음" : "패드 전용 모드");

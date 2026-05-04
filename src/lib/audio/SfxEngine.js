@@ -149,6 +149,51 @@ window.createSfxEngine = function createSfxEngine(options) {
     return true;
   }
 
+  async function forceOpenOutput() {
+    const context = ensureContext();
+    if (!context || !masterGain) {
+      return false;
+    }
+
+    try {
+      if (context.state !== "running") {
+        await context.resume();
+      }
+      unlocked = true;
+    } catch (error) {
+      onStatus("오디오 출력을 시작하지 못했어요.");
+      return false;
+    }
+
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+    const now = context.currentTime;
+
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(987.77, now);
+    gainNode.gain.setValueAtTime(0.0001, now);
+    gainNode.gain.exponentialRampToValueAtTime(0.085, now + 0.006);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(masterGain);
+
+    await new Promise((resolve) => {
+      oscillator.addEventListener("ended", resolve, { once: true });
+      oscillator.start(now);
+      oscillator.stop(now + 0.065);
+    });
+
+    try {
+      oscillator.disconnect();
+      gainNode.disconnect();
+    } catch (error) {
+      // Ignore cleanup issues after forced output priming.
+    }
+
+    return true;
+  }
+
   async function primeSample(id, options = {}) {
     const context = await unlock();
     if (!context || !masterGain) {
@@ -245,6 +290,7 @@ window.createSfxEngine = function createSfxEngine(options) {
   return {
     unlock,
     warmAll,
+    forceOpenOutput,
     primeOutput,
     primeSample,
     playSound,

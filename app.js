@@ -216,37 +216,27 @@ dom.stopButton.addEventListener("click", () => {
 
 dom.audioStartButton?.addEventListener("click", async () => {
   dom.audioStartButton.disabled = true;
-  dom.audioStartMessage.textContent = "사운드 엔진 준비 중...";
+  dom.audioStartMessage.textContent = "패드 출력을 여는 중...";
 
-  const context = await sfxEngine.unlock();
-  if (!context) {
+  const forcedOutput = await sfxEngine.forceOpenOutput();
+  if (!forcedOutput) {
     dom.audioStartMessage.textContent =
-      "자동 활성화가 안 됐어요. 상단 유튜브 Play 버튼을 눌러본 뒤 다시 시도해주세요.";
+      "패드 출력 활성화가 안 됐어요. 다시 한 번 눌러보거나 음원 포함 모드에서 유튜브 Play를 눌러주세요.";
     dom.audioStartButton.disabled = false;
     return;
   }
 
+  dom.audioStartMessage.textContent = "사운드 엔진 준비 중...";
+
   const primed = await sfxEngine.primeOutput();
   if (!primed) {
     dom.audioStartMessage.textContent =
-      "출력 활성화에 실패했어요. 상단 유튜브 Play 버튼을 눌러본 뒤 다시 시도해주세요.";
+      "출력 활성화에 실패했어요. 다시 한 번 눌러보거나 음원 포함 모드에서 유튜브 Play를 눌러주세요.";
     dom.audioStartButton.disabled = false;
     return;
   }
 
   await sfxEngine.warmAll();
-  dom.audioStartMessage.textContent = "사운드 출력 확인 중...";
-
-  const primedSample = await sfxEngine.primeSample(SOUNDS[0]?.id, {
-    volume: 0.22,
-    maxDuration: 0.09,
-  });
-  if (!primedSample) {
-    dom.audioStartMessage.textContent =
-      "패드 출력 활성화에 실패했어요. 그래도 안 들리면 음원 포함 모드에서 유튜브 Play를 눌러주세요.";
-    dom.audioStartButton.disabled = false;
-    return;
-  }
 
   if (isMusicMode) {
     dom.audioStartMessage.textContent = "유튜브 컨트롤 준비 중...";

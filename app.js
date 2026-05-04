@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
 const DEFAULT_VIDEO_URL = "https://www.youtube.com/watch?v=_Ngk-DCHfD0";
 const DEFAULT_VIDEO_ID = "_Ngk-DCHfD0";
 const DEFAULT_TRACK_NAME = "기본 트랙";
+const MOBILE_TEST_SOUND_ID = "yeoja2.m4a";
 const VOLUME_CURVE_EXPONENT = 2;
 const PAD_KEYS = ["Q", "W", "E", "R", "A", "S", "D", "F"];
 const PAD_KEYS_KO = ["ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅁ", "ㄴ", "ㅇ", "ㄹ"];
@@ -167,6 +168,7 @@ const sfxEngine = isMobileDevice
       sounds: SOUNDS,
       initialMasterVolume: 1,
       onStatus: setStatus,
+      testSoundId: MOBILE_TEST_SOUND_ID,
     })
   : window.createSfxEngine({
       sounds: SOUNDS,

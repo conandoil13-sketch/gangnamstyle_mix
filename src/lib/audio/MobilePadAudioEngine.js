@@ -3,6 +3,7 @@ window.createMobilePadAudioEngine = function createMobilePadAudioEngine(options)
     sounds,
     initialMasterVolume = 1,
     onStatus = () => {},
+    testSoundId = "",
   } = options;
 
   const soundMap = new Map(sounds.map((sound) => [sound.id, sound]));
@@ -58,14 +59,14 @@ window.createMobilePadAudioEngine = function createMobilePadAudioEngine(options)
   }
 
   async function forceOpenOutput() {
-    const firstSound = sounds[0];
-    if (!firstSound) {
+    const targetSound = soundMap.get(testSoundId) ?? sounds[0];
+    if (!targetSound) {
       unlocked = true;
       return true;
     }
 
     const audio = document.createElement("audio");
-    audio.src = firstSound.src;
+    audio.src = targetSound.src;
     audio.preload = "auto";
     audio.playsInline = true;
     audio.volume = 0.12;

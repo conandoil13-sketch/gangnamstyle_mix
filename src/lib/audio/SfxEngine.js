@@ -149,6 +149,48 @@ window.createSfxEngine = function createSfxEngine(options) {
     return true;
   }
 
+  async function primeSample(id, options = {}) {
+    const context = await unlock();
+    if (!context || !masterGain) {
+      return false;
+    }
+
+    const buffer = await loadBuffer(id);
+    if (!buffer) {
+      return false;
+    }
+
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+
+    const gainNode = context.createGain();
+    gainNode.gain.value = typeof options.volume === "number" ? options.volume : 0.18;
+
+    source.connect(gainNode);
+    gainNode.connect(masterGain);
+
+    const maxDuration = Math.max(
+      0.03,
+      Math.min(buffer.duration, typeof options.maxDuration === "number" ? options.maxDuration : 0.08)
+    );
+    const now = context.currentTime;
+
+    await new Promise((resolve) => {
+      source.addEventListener("ended", resolve, { once: true });
+      source.start(now, 0, maxDuration);
+      source.stop(now + maxDuration);
+    });
+
+    try {
+      source.disconnect();
+      gainNode.disconnect();
+    } catch (error) {
+      // Ignore cleanup issues after priming.
+    }
+
+    return true;
+  }
+
   function removeSource(source) {
     const cleanup = sourceCleanup.get(source);
     if (cleanup) {
@@ -204,6 +246,7 @@ window.createSfxEngine = function createSfxEngine(options) {
     unlock,
     warmAll,
     primeOutput,
+    primeSample,
     playSound,
     setMasterVolume(nextValue) {
       masterVolume = nextValue;

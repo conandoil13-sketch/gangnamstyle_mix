@@ -17,6 +17,9 @@ const SOUNDS = (window.PAD_CONFIG ?? []).map((item) => ({
 }));
 
 const dom = {
+  audioStartModal: document.querySelector("#audio-start-modal"),
+  audioStartMessage: document.querySelector("#audio-start-message"),
+  audioStartButton: document.querySelector("#audio-start-button"),
   urlInput: document.querySelector("#url-input"),
   loadUrlButton: document.querySelector("#load-url-button"),
   playerStatus: document.querySelector("#player-status"),
@@ -52,6 +55,10 @@ function setStatus(text) {
 
 function setNowPlaying(text) {
   dom.nowPlaying.textContent = text;
+}
+
+function closeAudioStartModal() {
+  dom.audioStartModal?.classList.add("hidden");
 }
 
 const sfxEngine = window.createSfxEngine({
@@ -110,6 +117,23 @@ dom.pauseButton.addEventListener("click", () => {
 
 dom.stopButton.addEventListener("click", () => {
   youtubeController.stop();
+});
+
+dom.audioStartButton?.addEventListener("click", async () => {
+  dom.audioStartButton.disabled = true;
+  dom.audioStartMessage.textContent = "사운드 엔진 준비 중...";
+
+  const context = await sfxEngine.unlock();
+  if (!context) {
+    dom.audioStartMessage.textContent =
+      "자동 활성화가 안 됐어요. 상단 유튜브 Play 버튼을 눌러본 뒤 다시 시도해주세요.";
+    dom.audioStartButton.disabled = false;
+    return;
+  }
+
+  await sfxEngine.warmAll();
+  setStatus("패드 준비 완료");
+  closeAudioStartModal();
 });
 
 setStatus("플레이어 로딩 중");

@@ -32,6 +32,57 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.modal-backdrop.hidden {
+  display: none;
+}
+
+.modal-card {
+  width: min(100%, 420px);
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #171717;
+  text-align: center;
+}
+
+.modal-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.2rem;
+}
+
+.modal-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.modal-subtext {
+  margin-top: 10px !important;
+  font-size: 0.92rem;
+}
+
+.modal-card .accent-button {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.modal-card .accent-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .page-shell {
   width: 100%;
   max-width: 960px;

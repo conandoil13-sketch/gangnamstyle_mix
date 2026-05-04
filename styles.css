@@ -104,6 +104,12 @@ html {
   flex-wrap: wrap;
 }
 
+.switch-stack {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
 .topbar h1 {
   margin: 0;
   font-size: 1.4rem;

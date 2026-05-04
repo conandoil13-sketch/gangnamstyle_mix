@@ -9,12 +9,16 @@ window.createPadEngine = function createPadEngine(options) {
     storageKey,
   } = options;
 
-  const PAD_FALLBACK_POOL_SIZE = 2;
+  const PAD_FALLBACK_POOL_SIZE = 6;
   const PAD_BOOST_MULTIPLIER = 1.75;
   const VOLUME_CURVE_EXPONENT = 2;
   const padAudioPools = new Map();
   const padTriggers = new Map();
   const prefersHtmlAudioPads = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isTouchDevice =
+    "ontouchstart" in window ||
+    navigator.maxTouchPoints > 0 ||
+    window.matchMedia("(pointer: coarse)").matches;
   const padColors = [
     { glow: "rgba(0, 255, 255, 0.34)", border: "rgba(110, 255, 255, 0.72)", inner: "rgba(180, 255, 255, 0.18)" },
     { glow: "rgba(255, 0, 255, 0.34)", border: "rgba(255, 120, 255, 0.72)", inner: "rgba(255, 190, 255, 0.18)" },
@@ -49,9 +53,10 @@ window.createPadEngine = function createPadEngine(options) {
 
   function createPadAudioInstance(soundSrc) {
     const audio = new Audio(soundSrc);
-    audio.preload = "metadata";
+    audio.preload = "auto";
     audio.playsInline = true;
     audio.volume = getFallbackVolume();
+    audio.load();
     return audio;
   }
 
@@ -64,6 +69,32 @@ window.createPadEngine = function createPadEngine(options) {
     const pool = Array.from({ length: initialSize }, () => createPadAudioInstance(soundSrc));
     padAudioPools.set(soundSrc, pool);
     return pool;
+  }
+
+  function warmPadPools() {
+    sounds.forEach((sound) => {
+      const pool = ensurePadAudioPool(sound.src, 1);
+      pool.forEach((audio) => {
+        audio.volume = getFallbackVolume();
+        if (audio.preload !== "auto") {
+          audio.preload = "auto";
+        }
+        if (audio.readyState < 2) {
+          audio.load();
+        }
+      });
+    });
+  }
+
+  function scheduleWarmPadPools() {
+    const warm = () => warmPadPools();
+
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(warm, { timeout: 1200 });
+      return;
+    }
+
+    window.setTimeout(warm, 120);
   }
 
   function playPadFallback(soundSrc) {
@@ -79,6 +110,9 @@ window.createPadEngine = function createPadEngine(options) {
       })();
 
     reusableAudio.volume = getFallbackVolume();
+    if (reusableAudio.readyState < 2) {
+      reusableAudio.load();
+    }
     reusableAudio.currentTime = 0;
     reusableAudio.play().catch(() => {
       onStatus("브라우저가 오디오 재생을 막았어요. 한 번 클릭 후 다시 시도해보세요.");
@@ -185,7 +219,6 @@ window.createPadEngine = function createPadEngine(options) {
     button.className = "pad-button";
     button.type = "button";
     button.dataset.sound = sound.src;
-    let lastTriggerAt = 0;
 
     const assignedKey = padKeys[index] ?? String(index + 1);
     button.innerHTML = `
@@ -194,17 +227,17 @@ window.createPadEngine = function createPadEngine(options) {
     `;
 
     const trigger = () => {
-      const now = Date.now();
-      if (now - lastTriggerAt < 120) {
-        return;
-      }
-      lastTriggerAt = now;
       triggerPad(sound.src, button);
     };
 
-    button.addEventListener("pointerdown", trigger);
-    button.addEventListener("touchstart", trigger, { passive: true });
-    button.addEventListener("click", trigger);
+    if (window.PointerEvent) {
+      button.addEventListener("pointerdown", trigger);
+    } else if (isTouchDevice) {
+      button.addEventListener("touchstart", trigger, { passive: true });
+    } else {
+      button.addEventListener("click", trigger);
+    }
+
     return { button, assignedKey, trigger };
   }
 
@@ -230,6 +263,7 @@ window.createPadEngine = function createPadEngine(options) {
     document.addEventListener(
       eventName,
       () => {
+        warmPadPools();
         if (!prefersHtmlAudioPads) {
           ensureAudioContext();
           preloadPadSounds();
@@ -238,6 +272,8 @@ window.createPadEngine = function createPadEngine(options) {
       { once: true }
     );
   });
+
+  scheduleWarmPadPools();
 
   padVolumeInput.addEventListener("input", (event) => {
     volumePercent = Number(event.target.value);

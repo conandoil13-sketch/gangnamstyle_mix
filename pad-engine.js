@@ -9,7 +9,7 @@ window.createPadEngine = function createPadEngine(options) {
     storageKey,
   } = options;
 
-  const PAD_FALLBACK_POOL_SIZE = 6;
+  const PAD_FALLBACK_POOL_SIZE = 12;
   const PAD_BOOST_MULTIPLIER = 1.75;
   const VOLUME_CURVE_EXPONENT = 2;
   const padAudioPools = new Map();
@@ -73,7 +73,7 @@ window.createPadEngine = function createPadEngine(options) {
 
   function warmPadPools() {
     sounds.forEach((sound) => {
-      const pool = ensurePadAudioPool(sound.src, 1);
+      const pool = ensurePadAudioPool(sound.src, 2);
       pool.forEach((audio) => {
         audio.volume = getFallbackVolume();
         if (audio.preload !== "auto") {
@@ -98,22 +98,26 @@ window.createPadEngine = function createPadEngine(options) {
   }
 
   function playPadFallback(soundSrc) {
-    const pool = ensurePadAudioPool(soundSrc, 1);
+    const pool = ensurePadAudioPool(soundSrc, 2);
     const reusableAudio =
       pool.find((audio) => audio.paused || audio.ended) ??
       (() => {
-        const audio = createPadAudioInstance(soundSrc);
         if (pool.length < PAD_FALLBACK_POOL_SIZE) {
+          const audio = createPadAudioInstance(soundSrc);
           pool.push(audio);
+          return audio;
         }
-        return audio;
+
+        return pool[0];
       })();
 
     reusableAudio.volume = getFallbackVolume();
-    if (reusableAudio.readyState < 2) {
-      reusableAudio.load();
+    try {
+      reusableAudio.pause();
+      reusableAudio.currentTime = 0;
+    } catch (error) {
+      // Ignore reset failures and still attempt immediate playback.
     }
-    reusableAudio.currentTime = 0;
     reusableAudio.play().catch(() => {
       onStatus("브라우저가 오디오 재생을 막았어요. 한 번 클릭 후 다시 시도해보세요.");
     });

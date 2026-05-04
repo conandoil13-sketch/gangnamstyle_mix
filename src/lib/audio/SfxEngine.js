@@ -115,6 +115,40 @@ window.createSfxEngine = function createSfxEngine(options) {
     return warmAllPromise;
   }
 
+  async function primeOutput() {
+    const context = await unlock();
+    if (!context || !masterGain) {
+      return false;
+    }
+
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880;
+    gainNode.gain.value = 0.0001;
+
+    oscillator.connect(gainNode);
+    gainNode.connect(masterGain);
+
+    const now = context.currentTime;
+    oscillator.start(now);
+    oscillator.stop(now + 0.02);
+
+    await new Promise((resolve) => {
+      oscillator.addEventListener("ended", resolve, { once: true });
+    });
+
+    try {
+      oscillator.disconnect();
+      gainNode.disconnect();
+    } catch (error) {
+      // Ignore cleanup issues after priming.
+    }
+
+    return true;
+  }
+
   function removeSource(source) {
     const cleanup = sourceCleanup.get(source);
     if (cleanup) {
@@ -169,6 +203,7 @@ window.createSfxEngine = function createSfxEngine(options) {
   return {
     unlock,
     warmAll,
+    primeOutput,
     playSound,
     setMasterVolume(nextValue) {
       masterVolume = nextValue;

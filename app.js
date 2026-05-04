@@ -148,6 +148,14 @@ dom.audioStartButton?.addEventListener("click", async () => {
     return;
   }
 
+  const primed = await sfxEngine.primeOutput();
+  if (!primed) {
+    dom.audioStartMessage.textContent =
+      "출력 활성화에 실패했어요. 상단 유튜브 Play 버튼을 눌러본 뒤 다시 시도해주세요.";
+    dom.audioStartButton.disabled = false;
+    return;
+  }
+
   await sfxEngine.warmAll();
   setStatus("패드 준비 완료");
   setYouTubeControlsEnabled(true);

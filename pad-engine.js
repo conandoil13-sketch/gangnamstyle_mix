@@ -9,7 +9,7 @@ window.createPadEngine = function createPadEngine(options) {
     storageKey,
   } = options;
 
-  const PAD_FALLBACK_POOL_SIZE = 12;
+  const PAD_FALLBACK_POOL_SIZE = 8;
   const PAD_BOOST_MULTIPLIER = 1.75;
   const VOLUME_CURVE_EXPONENT = 2;
   const padAudioPools = new Map();
@@ -73,7 +73,7 @@ window.createPadEngine = function createPadEngine(options) {
 
   function warmPadPools() {
     sounds.forEach((sound) => {
-      const pool = ensurePadAudioPool(sound.src, 2);
+      const pool = ensurePadAudioPool(sound.src, 1);
       pool.forEach((audio) => {
         audio.volume = getFallbackVolume();
         if (audio.preload !== "auto") {
@@ -98,7 +98,7 @@ window.createPadEngine = function createPadEngine(options) {
   }
 
   function playPadFallback(soundSrc) {
-    const pool = ensurePadAudioPool(soundSrc, 2);
+    const pool = ensurePadAudioPool(soundSrc, 1);
     const reusableAudio =
       pool.find((audio) => audio.paused || audio.ended) ??
       (() => {

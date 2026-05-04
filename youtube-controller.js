@@ -16,6 +16,7 @@ window.createYouTubeController = function createYouTubeController(options) {
   let activeVideoId = "";
   let activeTrackTitle = "";
   let volumePercent = initialVolumePercent;
+  let playerBootstrapped = false;
 
   function clampPercent(value) {
     return Math.max(0, Math.min(100, value));
@@ -83,24 +84,12 @@ window.createYouTubeController = function createYouTubeController(options) {
     onNowPlaying(title);
   }
 
-  function handleReady(event) {
-    onStatus("준비 완료");
-    event.target.setVolume(getYouTubeVolume());
-    if (pendingVideo) {
-      const { videoId, title } = pendingVideo;
-      pendingVideo = null;
-      loadVideo(videoId, title);
+  function bootstrapPlayer() {
+    if (playerBootstrapped || !window.YT?.Player) {
       return;
     }
-    const savedId = extractVideoId(initialUrl);
-    if (savedId) {
-      loadVideo(savedId, defaultTrackName);
-      return;
-    }
-    onNowPlaying(defaultTrackName);
-  }
 
-  window.onYouTubeIframeAPIReady = function onYouTubeIframeAPIReady() {
+    playerBootstrapped = true;
     player = new YT.Player(playerElementId, {
       height: "100%",
       width: "100%",
@@ -127,7 +116,32 @@ window.createYouTubeController = function createYouTubeController(options) {
         },
       },
     });
-  };
+  }
+
+  function handleReady(event) {
+    onStatus("준비 완료");
+    event.target.setVolume(getYouTubeVolume());
+    if (pendingVideo) {
+      const { videoId, title } = pendingVideo;
+      pendingVideo = null;
+      loadVideo(videoId, title);
+      return;
+    }
+    const savedId = extractVideoId(initialUrl);
+    if (savedId) {
+      loadVideo(savedId, defaultTrackName);
+      return;
+    }
+    onNowPlaying(defaultTrackName);
+  }
+
+  if (window.YT?.Player) {
+    bootstrapPlayer();
+  } else {
+    window.onYouTubeIframeAPIReady = function onYouTubeIframeAPIReady() {
+      bootstrapPlayer();
+    };
+  }
 
   return {
     extractVideoId,

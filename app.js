@@ -48,6 +48,8 @@ const initialUrl = localStorage.getItem(STORAGE_KEYS.lastUrl) ?? DEFAULT_VIDEO_U
 const initialYouTubeVolume = Number(localStorage.getItem(STORAGE_KEYS.youtubeVolume) ?? 70);
 const initialPadVolume = Number(localStorage.getItem(STORAGE_KEYS.padVolume) ?? 100);
 let youtubeUnlocked = false;
+let youtubeController = null;
+let youtubeControllerPromise = null;
 
 dom.urlInput.value = initialUrl;
 dom.youtubeVolume.value = String(initialYouTubeVolume);
@@ -91,6 +93,75 @@ function setYouTubeControlsEnabled(enabled) {
   dom.youtubeVolume.disabled = !enabled;
 }
 
+function loadScript(src, key) {
+  const existing = document.querySelector(`script[data-load-key="${key}"]`);
+  if (existing) {
+    return new Promise((resolve, reject) => {
+      if (existing.dataset.loaded === "true") {
+        resolve();
+        return;
+      }
+
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)), {
+        once: true,
+      });
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.dataset.loadKey = key;
+    script.addEventListener(
+      "load",
+      () => {
+        script.dataset.loaded = "true";
+        resolve();
+      },
+      { once: true }
+    );
+    script.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)), {
+      once: true,
+    });
+    document.body.appendChild(script);
+  });
+}
+
+function ensureYouTubeController() {
+  if (!isMusicMode) {
+    return Promise.resolve(null);
+  }
+
+  if (youtubeController) {
+    return Promise.resolve(youtubeController);
+  }
+
+  if (!youtubeControllerPromise) {
+    youtubeControllerPromise = (async () => {
+      await loadScript("./youtube-controller.js", "youtube-controller");
+      await loadScript("https://www.youtube.com/iframe_api", "youtube-iframe-api");
+
+      youtubeController = window.createYouTubeController({
+        playerElementId: "player",
+        initialUrl,
+        defaultVideoId: DEFAULT_VIDEO_ID,
+        defaultTrackName: DEFAULT_TRACK_NAME,
+        initialVolumePercent: initialYouTubeVolume,
+        volumeExponent: VOLUME_CURVE_EXPONENT,
+        onStatus: setStatus,
+        onNowPlaying: setNowPlaying,
+        storageKey: STORAGE_KEYS.lastUrl,
+      });
+
+      return youtubeController;
+    })();
+  }
+
+  return youtubeControllerPromise;
+}
+
 const sfxEngine = window.createSfxEngine({
   sounds: SOUNDS,
   initialMasterVolume: 1,
@@ -108,20 +179,6 @@ const padEngine = window.createPadEngine({
   storageKey: STORAGE_KEYS.padVolume,
   sfxEngine,
 });
-
-const youtubeController = isMusicMode
-  ? window.createYouTubeController({
-      playerElementId: "player",
-      initialUrl,
-      defaultVideoId: DEFAULT_VIDEO_ID,
-      defaultTrackName: DEFAULT_TRACK_NAME,
-      initialVolumePercent: initialYouTubeVolume,
-      volumeExponent: VOLUME_CURVE_EXPONENT,
-      onStatus: setStatus,
-      onNowPlaying: setNowPlaying,
-      storageKey: STORAGE_KEYS.lastUrl,
-    })
-  : null;
 
 dom.loadUrlButton.addEventListener("click", () => {
   if (!youtubeUnlocked || !youtubeController) return;
@@ -178,6 +235,16 @@ dom.audioStartButton?.addEventListener("click", async () => {
   }
 
   await sfxEngine.warmAll();
+  if (isMusicMode) {
+    dom.audioStartMessage.textContent = "유튜브 컨트롤 준비 중...";
+    try {
+      await ensureYouTubeController();
+    } catch (error) {
+      dom.audioStartMessage.textContent = "유튜브 컨트롤을 불러오지 못했어요.";
+      dom.audioStartButton.disabled = false;
+      return;
+    }
+  }
   setStatus("패드 준비 완료");
   setYouTubeControlsEnabled(true);
   closeAudioStartModal();

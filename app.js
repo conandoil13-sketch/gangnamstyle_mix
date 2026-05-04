@@ -40,6 +40,7 @@ const isMobileDevice =
 const initialUrl = localStorage.getItem(STORAGE_KEYS.lastUrl) ?? DEFAULT_VIDEO_URL;
 const initialYouTubeVolume = Number(localStorage.getItem(STORAGE_KEYS.youtubeVolume) ?? 70);
 const initialPadVolume = Number(localStorage.getItem(STORAGE_KEYS.padVolume) ?? 100);
+let youtubeUnlocked = false;
 
 dom.urlInput.value = initialUrl;
 dom.youtubeVolume.value = String(initialYouTubeVolume);
@@ -59,6 +60,16 @@ function setNowPlaying(text) {
 
 function closeAudioStartModal() {
   dom.audioStartModal?.classList.add("hidden");
+}
+
+function setYouTubeControlsEnabled(enabled) {
+  youtubeUnlocked = enabled;
+  dom.urlInput.disabled = !enabled;
+  dom.loadUrlButton.disabled = !enabled;
+  dom.playButton.disabled = !enabled;
+  dom.pauseButton.disabled = !enabled;
+  dom.stopButton.disabled = !enabled;
+  dom.youtubeVolume.disabled = !enabled;
 }
 
 const sfxEngine = window.createSfxEngine({
@@ -92,30 +103,36 @@ const youtubeController = window.createYouTubeController({
 });
 
 dom.loadUrlButton.addEventListener("click", () => {
+  if (!youtubeUnlocked) return;
   youtubeController.loadFromInput(dom.urlInput.value.trim());
 });
 
 dom.urlInput.addEventListener("keydown", (event) => {
+  if (!youtubeUnlocked) return;
   if (event.key === "Enter") {
     youtubeController.loadFromInput(dom.urlInput.value.trim());
   }
 });
 
 dom.youtubeVolume.addEventListener("input", (event) => {
+  if (!youtubeUnlocked) return;
   const nextValue = Number(event.target.value);
   localStorage.setItem(STORAGE_KEYS.youtubeVolume, String(nextValue));
   youtubeController.setVolumePercent(nextValue);
 });
 
 dom.playButton.addEventListener("click", () => {
+  if (!youtubeUnlocked) return;
   youtubeController.play();
 });
 
 dom.pauseButton.addEventListener("click", () => {
+  if (!youtubeUnlocked) return;
   youtubeController.pause();
 });
 
 dom.stopButton.addEventListener("click", () => {
+  if (!youtubeUnlocked) return;
   youtubeController.stop();
 });
 
@@ -133,8 +150,10 @@ dom.audioStartButton?.addEventListener("click", async () => {
 
   await sfxEngine.warmAll();
   setStatus("패드 준비 완료");
+  setYouTubeControlsEnabled(true);
   closeAudioStartModal();
 });
 
-setStatus("플레이어 로딩 중");
+setYouTubeControlsEnabled(false);
+setStatus("패드 준비 후 유튜브 사용 가능");
 setNowPlaying("아직 없음");

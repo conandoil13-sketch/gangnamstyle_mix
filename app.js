@@ -162,11 +162,17 @@ function ensureYouTubeController() {
   return youtubeControllerPromise;
 }
 
-const sfxEngine = window.createSfxEngine({
-  sounds: SOUNDS,
-  initialMasterVolume: 1,
-  onStatus: setStatus,
-});
+const sfxEngine = isMobileDevice
+  ? window.createMobilePadAudioEngine({
+      sounds: SOUNDS,
+      initialMasterVolume: 1,
+      onStatus: setStatus,
+    })
+  : window.createSfxEngine({
+      sounds: SOUNDS,
+      initialMasterVolume: 1,
+      onStatus: setStatus,
+    });
 
 const padEngine = window.createPadEngine({
   sounds: SOUNDS,

@@ -8,8 +8,10 @@ const DEFAULT_VIDEO_URL = "https://www.youtube.com/watch?v=_Ngk-DCHfD0";
 const DEFAULT_VIDEO_ID = "_Ngk-DCHfD0";
 const DEFAULT_TRACK_NAME = "기본 트랙";
 const VOLUME_CURVE_EXPONENT = 2;
-const PAD_KEYS = ["Q", "W", "E", "R", "A", "S", "D", "F", "Z", "X", "C", "V"];
+const PAD_KEYS = ["Q", "W", "E", "R", "A", "S", "D", "F"];
+const PAD_KEYS_KO = ["ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅁ", "ㄴ", "ㅇ", "ㄹ"];
 const SOUNDS = (window.PAD_CONFIG ?? []).map((item) => ({
+  id: item.file,
   label: item.name,
   src: `./sound/${item.file}`,
 }));
@@ -52,14 +54,22 @@ function setNowPlaying(text) {
   dom.nowPlaying.textContent = text;
 }
 
+const sfxEngine = window.createSfxEngine({
+  sounds: SOUNDS,
+  initialMasterVolume: 1,
+  onStatus: setStatus,
+});
+
 const padEngine = window.createPadEngine({
   sounds: SOUNDS,
   padKeys: PAD_KEYS,
+  alternatePadKeys: PAD_KEYS_KO,
   padGrid: dom.padGrid,
   padVolumeInput: dom.padVolume,
   initialVolumePercent: initialPadVolume,
   onStatus: setStatus,
   storageKey: STORAGE_KEYS.padVolume,
+  sfxEngine,
 });
 
 const youtubeController = window.createYouTubeController({

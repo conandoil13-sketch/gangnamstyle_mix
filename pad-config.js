@@ -16,4 +16,8 @@ window.PAD_CONFIG = [
   { name: "머리푸는", file: "meoripu.m4a" },
   { name: "미쳐", file: "micheo.m4a" },
   { name: "사나이", file: "sanai.m4a" },
+  { name: "댐걸", file: "dammgirl.m4a" },
+  { name: "암어", file: "ima.m4a" },
+  { name: "마더파더젠틀멘", file: "mfgentleman.m4a" },
+  { name: "낮에는따사로운~", file: "nazeneunttasaroun.m4a" },
 ];

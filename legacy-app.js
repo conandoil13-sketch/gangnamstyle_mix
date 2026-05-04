@@ -17,7 +17,8 @@ const PAD_COLORS = [
   { glow: "rgba(70, 140, 255, 0.34)", border: "rgba(140, 185, 255, 0.72)", inner: "rgba(195, 220, 255, 0.18)" },
 ];
 
-const PAD_KEYS = ["Q", "W", "E", "R", "A", "S", "D", "F", "Z", "X", "C", "V"];
+const PAD_KEYS = ["Q", "W", "E", "R", "A", "S", "D", "F", "Z", "X", "C", "V", "Y", "U", "I", "O", "H"];
+const PAD_KEYS_KO = ["ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅁ", "ㄴ", "ㅇ", "ㄹ", "ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅛ", "ㅕ", "ㅑ", "ㅐ", "ㅗ"];
 const SOUNDS = (window.PAD_CONFIG ?? []).map((item) => ({
   label: item.name,
   src: `./sound/${item.file}`,
@@ -283,6 +284,10 @@ SOUNDS.forEach((sound, index) => {
   const { button, assignedKey, trigger } = createPadButton(sound, index);
   dom.padGrid.appendChild(button);
   padTriggers.set(assignedKey.toLowerCase(), trigger);
+  const alternateKey = PAD_KEYS_KO[index];
+  if (alternateKey) {
+    padTriggers.set(alternateKey.toLowerCase(), trigger);
+  }
 });
 
 document.addEventListener("keydown", (event) => {

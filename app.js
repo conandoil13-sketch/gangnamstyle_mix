@@ -10,7 +10,7 @@ const DEFAULT_TRACK_NAME = "기본 트랙";
 const MOBILE_TEST_SOUND_ID = "yeoja2.m4a";
 const VOLUME_CURVE_EXPONENT = 2;
 const PAD_KEYS = ["Q", "W", "E", "R", "A", "S", "D", "F", "Z", "X", "C", "V", "Y", "U", "I", "O", "H"];
-const PAD_KEYS_KO = ["ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅁ", "ㄴ", "ㅇ", "ㄹ"];
+const PAD_KEYS_KO = ["ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅁ", "ㄴ", "ㅇ", "ㄹ", "ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅛ", "ㅕ", "ㅑ", "ㅐ", "ㅗ"];
 const SOUNDS = (window.PAD_CONFIG ?? []).map((item) => ({
   id: item.file,
   label: item.name,
